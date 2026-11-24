@@ -83,11 +83,20 @@
                   "type": "string"
                 }
               },
-              "required": ["path", "message"]
+              "required": [
+                "path",
+                "message"
+              ]
             }
           }
         },
-        "required": ["type", "title", "status", "code", "detail"],
+        "required": [
+          "type",
+          "title",
+          "status",
+          "code",
+          "detail"
+        ],
         "description": "RFC 9457 problem details."
       },
       "Health": {
@@ -95,13 +104,19 @@
         "properties": {
           "status": {
             "type": "string",
-            "enum": ["ok", "unavailable"]
+            "enum": [
+              "ok",
+              "unavailable"
+            ]
           },
           "uptimeSeconds": {
             "type": "number"
           }
         },
-        "required": ["status", "uptimeSeconds"]
+        "required": [
+          "status",
+          "uptimeSeconds"
+        ]
       },
       "Session": {
         "type": "object",
@@ -122,7 +137,12 @@
             "$ref": "#/components/schemas/Admin"
           }
         },
-        "required": ["token", "expiresAt", "idleTimeoutSeconds", "admin"]
+        "required": [
+          "token",
+          "expiresAt",
+          "idleTimeoutSeconds",
+          "admin"
+        ]
       },
       "Admin": {
         "type": "object",
@@ -139,7 +159,11 @@
             "type": "string"
           }
         },
-        "required": ["id", "email", "name"]
+        "required": [
+          "id",
+          "email",
+          "name"
+        ]
       },
       "LoginRequest": {
         "type": "object",
@@ -155,7 +179,10 @@
             "example": "change-me-please-123"
           }
         },
-        "required": ["email", "password"],
+        "required": [
+          "email",
+          "password"
+        ],
         "additionalProperties": false
       },
       "LogoutAllResponse": {
@@ -165,7 +192,9 @@
             "type": "integer"
           }
         },
-        "required": ["revokedSessions"]
+        "required": [
+          "revokedSessions"
+        ]
       },
       "ClientPage": {
         "type": "object",
@@ -189,7 +218,13 @@
             "type": "integer"
           }
         },
-        "required": ["items", "page", "pageSize", "totalItems", "totalPages"]
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "totalItems",
+          "totalPages"
+        ]
       },
       "Client": {
         "type": "object",
@@ -202,16 +237,28 @@
             "type": "string"
           },
           "email": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "phone": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "notes": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "archivedAt": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "date-time"
           },
           "createdAt": {
@@ -228,7 +275,17 @@
             "description": "All-time balance (earnings − expenses)."
           }
         },
-        "required": ["id", "name", "email", "phone", "notes", "archivedAt", "createdAt", "updatedAt", "balance"]
+        "required": [
+          "id",
+          "name",
+          "email",
+          "phone",
+          "notes",
+          "archivedAt",
+          "createdAt",
+          "updatedAt",
+          "balance"
+        ]
       },
       "CreateClientRequest": {
         "type": "object",
@@ -240,21 +297,32 @@
             "example": "Acme Corporation"
           },
           "email": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "email",
             "example": "billing@acme.test",
             "description": "Empty string or null clears it."
           },
           "phone": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "example": "+1 (555) 010-2030"
           },
           "notes": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "maxLength": 2000
           }
         },
-        "required": ["name"],
+        "required": [
+          "name"
+        ],
         "additionalProperties": false
       },
       "UpdateClientRequest": {
@@ -267,17 +335,26 @@
             "example": "Acme Corporation"
           },
           "email": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "email",
             "example": "billing@acme.test",
             "description": "Empty string or null clears it."
           },
           "phone": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "example": "+1 (555) 010-2030"
           },
           "notes": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "maxLength": 2000
           }
         },
@@ -305,7 +382,13 @@
             "type": "integer"
           }
         },
-        "required": ["items", "page", "pageSize", "totalItems", "totalPages"]
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "totalItems",
+          "totalPages"
+        ]
       },
       "Movement": {
         "type": "object",
@@ -350,7 +433,10 @@
                 "type": "string"
               }
             },
-            "required": ["id", "name"]
+            "required": [
+              "id",
+              "name"
+            ]
           },
           "createdAt": {
             "type": "string",
@@ -376,7 +462,10 @@
       },
       "MovementType": {
         "type": "string",
-        "enum": ["EARNING", "EXPENSE"]
+        "enum": [
+          "EARNING",
+          "EXPENSE"
+        ]
       },
       "CreateMovementRequest": {
         "type": "object",
@@ -402,7 +491,12 @@
             "example": "Consulting — October"
           }
         },
-        "required": ["type", "amount", "occurredOn", "description"],
+        "required": [
+          "type",
+          "amount",
+          "occurredOn",
+          "description"
+        ],
         "additionalProperties": false
       },
       "UpdateMovementRequest": {
@@ -445,11 +539,18 @@
                 "type": "string"
               },
               "archivedAt": {
-                "type": ["string", "null"],
+                "type": [
+                  "string",
+                  "null"
+                ],
                 "format": "date-time"
               }
             },
-            "required": ["id", "name", "archivedAt"]
+            "required": [
+              "id",
+              "name",
+              "archivedAt"
+            ]
           },
           "range": {
             "$ref": "#/components/schemas/ReportRange"
@@ -458,23 +559,36 @@
             "$ref": "#/components/schemas/ReportTotals"
           }
         },
-        "required": ["client", "range", "totals"]
+        "required": [
+          "client",
+          "range",
+          "totals"
+        ]
       },
       "ReportRange": {
         "type": "object",
         "properties": {
           "from": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "date",
             "description": "null = from the beginning"
           },
           "to": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "date",
             "description": "null = up to today"
           }
         },
-        "required": ["from", "to"]
+        "required": [
+          "from",
+          "to"
+        ]
       },
       "ReportTotals": {
         "type": "object",
@@ -508,7 +622,14 @@
             "type": "integer"
           }
         },
-        "required": ["openingBalance", "totalEarnings", "totalExpenses", "net", "closingBalance", "movementCount"]
+        "required": [
+          "openingBalance",
+          "totalEarnings",
+          "totalExpenses",
+          "net",
+          "closingBalance",
+          "movementCount"
+        ]
       },
       "OverviewReport": {
         "type": "object",
@@ -528,7 +649,9 @@
                     "type": "integer"
                   }
                 },
-                "required": ["clientCount"]
+                "required": [
+                  "clientCount"
+                ]
               }
             ]
           },
@@ -536,7 +659,11 @@
             "$ref": "#/components/schemas/OverviewRowPage"
           }
         },
-        "required": ["range", "totals", "clients"]
+        "required": [
+          "range",
+          "totals",
+          "clients"
+        ]
       },
       "OverviewRowPage": {
         "type": "object",
@@ -560,7 +687,13 @@
             "type": "integer"
           }
         },
-        "required": ["items", "page", "pageSize", "totalItems", "totalPages"]
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "totalItems",
+          "totalPages"
+        ]
       },
       "OverviewRow": {
         "type": "object",
@@ -573,7 +706,10 @@
             "type": "string"
           },
           "archivedAt": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "date-time"
           },
           "totalEarnings": {
@@ -600,7 +736,16 @@
             "type": "integer"
           }
         },
-        "required": ["clientId", "name", "archivedAt", "totalEarnings", "totalExpenses", "net", "closingBalance", "movementCount"]
+        "required": [
+          "clientId",
+          "name",
+          "archivedAt",
+          "totalEarnings",
+          "totalExpenses",
+          "net",
+          "closingBalance",
+          "movementCount"
+        ]
       },
       "AuditLogPage": {
         "type": "object",
@@ -624,7 +769,13 @@
             "type": "integer"
           }
         },
-        "required": ["items", "page", "pageSize", "totalItems", "totalPages"]
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "totalItems",
+          "totalPages"
+        ]
       },
       "AuditLog": {
         "type": "object",
@@ -638,24 +789,39 @@
             "example": "movement.created"
           },
           "entityType": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "entityId": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "metadata": {},
           "ipAddress": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "requestId": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "createdAt": {
             "type": "string",
             "format": "date-time"
           },
           "admin": {
-            "type": ["object", "null"],
+            "type": [
+              "object",
+              "null"
+            ],
             "properties": {
               "id": {
                 "type": "string",
@@ -665,10 +831,22 @@
                 "type": "string"
               }
             },
-            "required": ["id", "name"]
+            "required": [
+              "id",
+              "name"
+            ]
           }
         },
-        "required": ["id", "action", "entityType", "entityId", "ipAddress", "requestId", "createdAt", "admin"]
+        "required": [
+          "id",
+          "action",
+          "entityType",
+          "entityId",
+          "ipAddress",
+          "requestId",
+          "createdAt",
+          "admin"
+        ]
       }
     },
     "parameters": {}
@@ -678,7 +856,9 @@
       "get": {
         "operationId": "liveness",
         "summary": "Liveness probe",
-        "tags": ["Health"],
+        "tags": [
+          "Health"
+        ],
         "security": [],
         "responses": {
           "200": {
@@ -718,7 +898,9 @@
       "get": {
         "operationId": "readiness",
         "summary": "Readiness probe (checks the database)",
-        "tags": ["Health"],
+        "tags": [
+          "Health"
+        ],
         "security": [],
         "responses": {
           "200": {
@@ -769,7 +951,9 @@
         "operationId": "login",
         "summary": "Sign in as an administrator",
         "description": "Rate limited per IP and per account. Returns an opaque session token.",
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "security": [],
         "requestBody": {
           "required": true,
@@ -832,7 +1016,9 @@
       "get": {
         "operationId": "getCurrentAdmin",
         "summary": "Get the signed-in administrator",
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -886,7 +1072,9 @@
       "post": {
         "operationId": "logout",
         "summary": "Revoke the current session",
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -933,7 +1121,9 @@
       "post": {
         "operationId": "logoutAll",
         "summary": "Revoke every session of the current administrator",
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -987,7 +1177,9 @@
       "get": {
         "operationId": "listClients",
         "summary": "List clients",
-        "tags": ["Clients"],
+        "tags": [
+          "Clients"
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -1032,7 +1224,11 @@
           {
             "schema": {
               "type": "string",
-              "enum": ["active", "archived", "all"],
+              "enum": [
+                "active",
+                "archived",
+                "all"
+              ],
               "default": "active"
             },
             "required": false,
@@ -1042,7 +1238,11 @@
           {
             "schema": {
               "type": "string",
-              "enum": ["name", "newest", "oldest"],
+              "enum": [
+                "name",
+                "newest",
+                "oldest"
+              ],
               "default": "name"
             },
             "required": false,
@@ -1106,7 +1306,9 @@
       "post": {
         "operationId": "createClient",
         "summary": "Create a client",
-        "tags": ["Clients"],
+        "tags": [
+          "Clients"
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -1183,7 +1385,9 @@
       "get": {
         "operationId": "getClient",
         "summary": "Get a client",
-        "tags": ["Clients"],
+        "tags": [
+          "Clients"
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -1259,7 +1463,9 @@
       "patch": {
         "operationId": "updateClient",
         "summary": "Update a client",
-        "tags": ["Clients"],
+        "tags": [
+          "Clients"
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -1351,7 +1557,9 @@
         "operationId": "archiveClient",
         "summary": "Archive a client",
         "description": "Hides the client from default lists and freezes its ledger. History is kept. Idempotent.",
-        "tags": ["Clients"],
+        "tags": [
+          "Clients"
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -1429,7 +1637,9 @@
       "post": {
         "operationId": "restoreClient",
         "summary": "Restore an archived client",
-        "tags": ["Clients"],
+        "tags": [
+          "Clients"
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -1508,7 +1718,9 @@
         "operationId": "listMovements",
         "summary": "List a client's movements",
         "description": "Filter by inclusive date range and type. Omit `from`/`to` for all time.",
-        "tags": ["Movements"],
+        "tags": [
+          "Movements"
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -1583,7 +1795,10 @@
           {
             "schema": {
               "type": "string",
-              "enum": ["newest", "oldest"],
+              "enum": [
+                "newest",
+                "oldest"
+              ],
               "default": "newest"
             },
             "required": false,
@@ -1650,7 +1865,9 @@
       "post": {
         "operationId": "createMovement",
         "summary": "Record an earning or expense",
-        "tags": ["Movements"],
+        "tags": [
+          "Movements"
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -1741,7 +1958,9 @@
       "get": {
         "operationId": "getMovement",
         "summary": "Get a movement",
-        "tags": ["Movements"],
+        "tags": [
+          "Movements"
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -1826,7 +2045,9 @@
       "patch": {
         "operationId": "updateMovement",
         "summary": "Update a movement",
-        "tags": ["Movements"],
+        "tags": [
+          "Movements"
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -1925,7 +2146,9 @@
         "operationId": "deleteMovement",
         "summary": "Delete a movement",
         "description": "Soft delete: excluded from balances and lists, retained for audit.",
-        "tags": ["Movements"],
+        "tags": [
+          "Movements"
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -2009,7 +2232,9 @@
         "operationId": "getClientReport",
         "summary": "Client balance report",
         "description": "Opening balance, earnings, expenses, net and closing balance for an inclusive date range (omit for all time).",
-        "tags": ["Reports"],
+        "tags": [
+          "Reports"
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -2112,7 +2337,9 @@
         "operationId": "exportClientStatement",
         "summary": "Download a client statement (CSV)",
         "description": "Every movement in the range, oldest first, with a running balance.",
-        "tags": ["Reports"],
+        "tags": [
+          "Reports"
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -2216,7 +2443,9 @@
         "operationId": "getOverviewReport",
         "summary": "Overview across all clients",
         "description": "Totals for the range plus a paginated per-client breakdown (archived clients included and flagged).",
-        "tags": ["Reports"],
+        "tags": [
+          "Reports"
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -2283,7 +2512,11 @@
           {
             "schema": {
               "type": "string",
-              "enum": ["name", "balance_desc", "balance_asc"],
+              "enum": [
+                "name",
+                "balance_desc",
+                "balance_asc"
+              ],
               "default": "name"
             },
             "required": false,
@@ -2349,7 +2582,9 @@
       "get": {
         "operationId": "exportOverviewReport",
         "summary": "Download the overview (CSV)",
-        "tags": ["Reports"],
+        "tags": [
+          "Reports"
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -2416,7 +2651,11 @@
           {
             "schema": {
               "type": "string",
-              "enum": ["name", "balance_desc", "balance_asc"],
+              "enum": [
+                "name",
+                "balance_desc",
+                "balance_asc"
+              ],
               "default": "name"
             },
             "required": false,
@@ -2483,7 +2722,9 @@
       "get": {
         "operationId": "listAuditLogs",
         "summary": "List activity (newest first)",
-        "tags": ["Audit"],
+        "tags": [
+          "Audit"
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -2517,7 +2758,11 @@
           {
             "schema": {
               "type": "string",
-              "enum": ["admin", "client", "movement"]
+              "enum": [
+                "admin",
+                "client",
+                "movement"
+              ]
             },
             "required": false,
             "name": "entityType",

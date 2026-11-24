@@ -1,0 +1,6 @@
+# Generated files: must stay byte-identical to their generators (CI drift checks).
+openapi.json
+src/generated
+prisma/migrations
+coverage
+dist
