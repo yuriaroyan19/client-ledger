@@ -1,0 +1,46 @@
+{
+  "name": "client-ledger",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Admin-only client ledger: Express + Prisma API and Next.js web app.",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "prepare": "husky",
+    "setup": "npm install && npm --prefix apps/api ci && npm --prefix apps/web ci && node scripts/init-env.mjs",
+    "env:init": "node scripts/init-env.mjs",
+    "docker:up": "docker compose up --build -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f --tail=100",
+    "docker:ps": "docker compose ps",
+    "docker:reset": "docker compose down -v",
+    "dev": "concurrently -k -n api,web -c blue,magenta \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:db": "docker compose up -d db",
+    "dev:api": "npm --prefix apps/api run dev",
+    "dev:web": "npm --prefix apps/web run dev",
+    "db:migrate": "npm --prefix apps/api run db:migrate",
+    "db:deploy": "npm --prefix apps/api run db:deploy",
+    "db:seed": "npm --prefix apps/api run db:seed",
+    "db:studio": "npm --prefix apps/api run db:studio",
+    "api:sync": "npm --prefix apps/api run openapi:export && npm --prefix apps/web run api:types",
+    "lint": "npm --prefix apps/api run lint && npm --prefix apps/web run lint",
+    "lint:fix": "npm --prefix apps/api run lint:fix && npm --prefix apps/web run lint:fix",
+    "typecheck": "npm --prefix apps/api run typecheck && npm --prefix apps/web run typecheck",
+    "format": "prettier --write . && npm --prefix apps/web run format",
+    "format:check": "prettier --check .",
+    "test": "npm --prefix apps/api test && npm --prefix apps/web test",
+    "test:integration": "npm --prefix apps/api run test:integration",
+    "test:all": "npm --prefix apps/api run test:all && npm --prefix apps/web test",
+    "test:smoke": "node --env-file=.env scripts/smoke-test.mjs",
+    "test:coverage": "npm --prefix apps/api run test:coverage && npm --prefix apps/web run test:coverage",
+    "build": "npm --prefix apps/api run build && npm --prefix apps/web run build",
+    "check": "npm run lint && npm run typecheck && npm test"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.7",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
+    "prettier": "^3.10.1"
+  }
+}

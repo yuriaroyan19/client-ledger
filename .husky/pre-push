@@ -1,0 +1,4 @@
+# Fast safety net before code leaves the machine: types + unit tests for both apps.
+# (Integration tests need Postgres; they run in CI and via `npm run test:integration`.)
+npm run typecheck
+npm test

@@ -1,0 +1,25 @@
+# Dependencies & build output
+node_modules/
+dist/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# Generated code (regenerated on install/build)
+apps/api/src/generated/
+
+# Secrets — only .env.example is committed
+.env
+.env.*
+!.env.example
+
+# Logs & OS/editor files
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json

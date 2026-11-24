@@ -1,0 +1,8 @@
+# Block committing secrets: real env files must never enter git history.
+if git diff --cached --name-only | grep -E '(^|/)\.env($|\.)' | grep -v '\.env\.example$'; then
+  echo "✖ Refusing to commit .env files (see list above). Use .env.example for documentation." >&2
+  exit 1
+fi
+
+# Lint + format only the staged files (per-app configs in apps/*/.lintstagedrc.json).
+npx lint-staged

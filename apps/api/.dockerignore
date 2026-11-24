@@ -1,0 +1,12 @@
+node_modules
+dist
+coverage
+test
+*.log
+.env
+.env.*
+!.env.example
+src/generated
+**/*.test.ts
+eslint.config.js
+vitest.config.ts

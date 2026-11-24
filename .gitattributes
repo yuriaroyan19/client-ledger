@@ -1,0 +1,4 @@
+# Normalise line endings so Windows/macOS/Linux contributors and Docker builds agree.
+* text=auto eol=lf
+*.png binary
+*.ico binary

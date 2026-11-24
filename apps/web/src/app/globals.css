@@ -1,0 +1,86 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens. Components use semantic names (bg-surface, text-muted, …) — never raw colours —
+ * so light/dark themes and future rebrands are a change in this file only.
+ */
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+
+  --color-canvas: #f6f7f9;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f1f3f6;
+  --color-border: #e2e5ea;
+  --color-border-strong: #cdd2da;
+  --color-fg: #111827;
+  --color-muted: #5b6474;
+  --color-accent: #2f5bea;
+  --color-accent-hover: #2449c4;
+  --color-accent-fg: #ffffff;
+  --color-accent-soft: #e9efff;
+  --color-positive: #0f7a4a;
+  --color-positive-soft: #e6f5ee;
+  --color-negative: #b4232f;
+  --color-negative-soft: #fcebec;
+  --color-warning: #8a5a00;
+  --color-warning-soft: #fff4d6;
+  --color-focus: #2f5bea;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-canvas: #0d1117;
+    --color-surface: #151b23;
+    --color-surface-muted: #1c232d;
+    --color-border: #2a323d;
+    --color-border-strong: #3a4452;
+    --color-fg: #e6e9ee;
+    --color-muted: #9aa4b2;
+    --color-accent: #6e8fff;
+    --color-accent-hover: #8ea8ff;
+    --color-accent-fg: #0d1117;
+    --color-accent-soft: #1d2a4d;
+    --color-positive: #4cc38a;
+    --color-positive-soft: #12291f;
+    --color-negative: #ff7b84;
+    --color-negative-soft: #33161a;
+    --color-warning: #f0b849;
+    --color-warning-soft: #2f2411;
+    --color-focus: #8ea8ff;
+  }
+}
+
+@layer base {
+  :root {
+    color-scheme: light dark;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-canvas font-sans text-fg antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  /* Tabular numbers keep amounts aligned in tables and cards. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

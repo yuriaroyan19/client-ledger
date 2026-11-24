@@ -1,0 +1,5 @@
+{
+  "*.ts": ["eslint --fix --max-warnings=0 --no-warn-ignored", "prettier --write --ignore-unknown"],
+  "*.{json,md}": "prettier --write --ignore-unknown",
+  "prisma/schema.prisma": "prisma format --schema prisma/schema.prisma"
+}

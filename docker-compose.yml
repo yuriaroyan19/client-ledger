@@ -1,0 +1,156 @@
+# Client Ledger — full stack.
+#   cp .env.example .env   # then set the passwords
+#   docker compose up --build
+# Web: http://localhost:3000 · API docs: http://localhost:4000/docs
+#
+# Only the web app is meant to be reached by browsers. The API and database ports are bound to
+# 127.0.0.1 for local tooling (Swagger, Prisma Studio) and are never exposed on the network.
+
+name: client-ledger
+
+x-restart: &restart
+  restart: unless-stopped
+
+services:
+  db:
+    <<: *restart
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ledger}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-client_ledger}
+      TZ: UTC
+      PGTZ: UTC
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    ports:
+      - '127.0.0.1:${DB_PORT:-5433}:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [backend]
+    security_opt: ['no-new-privileges:true']
+    # The entrypoint only needs to fix data-dir ownership and drop to the postgres user.
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+
+  # One-shot job: applies pending migrations, then runs the idempotent seed (initial admin, demo data).
+  migrate:
+    build:
+      context: ./apps/api
+      target: build
+    command: ['sh', '-c', './node_modules/.bin/prisma migrate deploy && node dist/scripts/seed.js']
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ledger}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-client_ledger}?schema=public
+      LOG_LEVEL: info
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?Set ADMIN_EMAIL in .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
+      ADMIN_NAME: ${ADMIN_NAME:-Administrator}
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
+      # One-off rotation: docker compose run --rm -e ADMIN_RESET_PASSWORD=true migrate
+      ADMIN_RESET_PASSWORD: ${ADMIN_RESET_PASSWORD:-false}
+      PRISMA_HIDE_UPDATE_MESSAGE: '1'
+    networks: [backend]
+    restart: 'no'
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ['no-new-privileges:true']
+    cap_drop: [ALL]
+
+  api:
+    <<: *restart
+    build:
+      context: ./apps/api
+      target: runtime
+    init: true
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ledger}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-client_ledger}?schema=public
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-true}
+      SESSION_IDLE_TIMEOUT_MINUTES: ${SESSION_IDLE_TIMEOUT_MINUTES:-30}
+      SESSION_ABSOLUTE_TIMEOUT_HOURS: ${SESSION_ABSOLUTE_TIMEOUT_HOURS:-12}
+      TRUST_PROXY: ${TRUST_PROXY:-loopback, linklocal, uniquelocal}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      RATE_LIMIT_WINDOW_MINUTES: ${RATE_LIMIT_WINDOW_MINUTES:-15}
+      RATE_LIMIT_LOGIN_MAX_PER_IP: ${RATE_LIMIT_LOGIN_MAX_PER_IP:-20}
+      RATE_LIMIT_LOGIN_MAX_FAILURES_PER_EMAIL: ${RATE_LIMIT_LOGIN_MAX_FAILURES_PER_EMAIL:-5}
+      RATE_LIMIT_GLOBAL_MAX_PER_MINUTE: ${RATE_LIMIT_GLOBAL_MAX_PER_MINUTE:-600}
+    ports:
+      - '127.0.0.1:${API_PORT:-4000}:4000'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:4000/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 10
+    networks: [backend, frontend]
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ['no-new-privileges:true']
+    cap_drop: [ALL]
+
+  web:
+    <<: *restart
+    build:
+      context: ./apps/web
+      args:
+        NEXT_PUBLIC_CURRENCY: ${CURRENCY:-USD}
+    init: true
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      API_URL: http://api:4000
+      # Secure cookies need HTTPS. Browsers treat http://localhost as secure, so `true` works locally too.
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      # Number of reverse proxies in front of the web app that APPEND to X-Forwarded-For.
+      # 0 = the web app is exposed directly: client-sent X-Forwarded-For is ignored (it is spoofable).
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-0}
+    ports:
+      - '${WEB_PORT:-3000}:3000'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 10
+    networks: [frontend]
+    read_only: true
+    tmpfs: [/tmp, /app/.next/cache]
+    security_opt: ['no-new-privileges:true']
+    cap_drop: [ALL]
+
+volumes:
+  db-data:
+
+networks:
+  # Isolation by membership: the database is only on `backend` (shared with the API), the web app only
+  # on `frontend` — so the web container cannot reach Postgres at all. (`internal: true` would also
+  # disable the 127.0.0.1 port binding used by local tooling.)
+  backend:
+  frontend:
