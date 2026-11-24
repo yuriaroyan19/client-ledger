@@ -3,7 +3,7 @@ import request from 'supertest';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 // Low limits for this file only. env.ts parses at import time, so set them before importing the app.
-process.env.RATE_LIMIT_GLOBAL_MAX_PER_MINUTE = '6';
+process.env.RATE_LIMIT_ANONYMOUS_MAX_PER_MINUTE = '6';
 process.env.RATE_LIMIT_LOGIN_MAX_PER_IP = '3';
 process.env.RATE_LIMIT_LOGIN_MAX_FAILURES_PER_EMAIL = '2';
 
@@ -20,7 +20,7 @@ const badLogin = (email: unknown, ip: string) =>
   request(app).post('/api/v1/auth/login').set('X-Forwarded-For', ip).send({ email, password: '' });
 
 describe('rate limits', () => {
-  it('global limiter returns a 429 problem with standard headers and skips health probes', async () => {
+  it('anonymous limiter returns a 429 problem with standard headers and skips health probes', async () => {
     for (let i = 0; i < 6; i += 1) await request(app).get('/api/v1/unknown').expect(404);
     const limited = await request(app).get('/api/v1/unknown').expect(429);
     expect(limited.body).toMatchObject({ status: 429, code: 'RATE_LIMITED' });

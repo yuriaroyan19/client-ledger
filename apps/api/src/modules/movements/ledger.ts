@@ -1,7 +1,7 @@
 import type { Prisma } from '../../generated/prisma/client.js';
 import { dateRangeFilter, type DateRange } from '../../lib/dates.js';
 import { Decimal, sumMoney } from '../../lib/money.js';
-import { prisma } from '../../lib/prisma.js';
+import { prisma, type DbClient } from '../../lib/prisma.js';
 
 /**
  * Ledger math lives here and ONLY here. Every balance shown anywhere in the product is
@@ -31,8 +31,8 @@ export function activeMovementsWhere(filter: MovementFilter): Prisma.MovementWhe
   };
 }
 
-export async function totalsFor(where: Prisma.MovementWhereInput): Promise<Totals> {
-  const groups = await prisma.movement.groupBy({
+export async function totalsFor(where: Prisma.MovementWhereInput, db: DbClient = prisma): Promise<Totals> {
+  const groups = await db.movement.groupBy({
     by: ['type'],
     where,
     _sum: { amount: true },

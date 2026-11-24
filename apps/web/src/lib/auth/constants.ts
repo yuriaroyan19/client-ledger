@@ -1,6 +1,17 @@
 /** Shared by server code and the edge-safe proxy (which cannot import `server-only` modules). */
 export const SESSION_COOKIE_NAMES = { secure: '__Host-cl_session', insecure: 'cl_session' } as const;
 
+/** Same shape the API issues (apps/api/src/modules/auth/session-token.ts): `cls_` + 32 random bytes, base64url. */
+const SESSION_TOKEN_PATTERN = /^cls_[A-Za-z0-9_-]{43}$/;
+
+/**
+ * Cheap shape check before a cookie is trusted enough to call the API with. A malformed value can
+ * never be a real session, so it is treated as no session at all (no API call, no rate-limit use).
+ */
+export function isWellFormedSessionToken(value: string | undefined): value is string {
+  return value !== undefined && SESSION_TOKEN_PATTERN.test(value);
+}
+
 /** Routes reachable without a session. Everything else requires one. */
 export const PUBLIC_PATHS = ['/login', '/logout', '/api/health'] as const;
 

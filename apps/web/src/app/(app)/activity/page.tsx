@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Pagination, withQuery } from '@/components/ui/pagination';
+import { buttonClass } from '@/components/ui/button';
+import { withQuery } from '@/components/ui/pagination';
 import { Badge, Card, EmptyState, PageHeader, Table, Td, Th } from '@/components/ui/primitives';
+import { UuidSchema } from '@/features/clients/schemas';
 import { api, read, type Schemas } from '@/lib/api/client';
-import { pageFromSearchParams } from '@/lib/date-range';
+import { firstParam } from '@/lib/date-range';
 import { formatDateTime } from '@/lib/format';
 
 export const metadata: Metadata = { title: 'Activity', description: 'Audit trail of sign-ins and changes.' };
@@ -29,8 +31,10 @@ function clientIdOf(entry: Schemas['AuditLog']): string | undefined {
 }
 
 export default async function ActivityPage({ searchParams }: PageProps<'/activity'>) {
-  const page = pageFromSearchParams(await searchParams);
-  const logs = await read(api.GET('/api/v1/audit-logs', { params: { query: { page, pageSize: 50 } } }));
+  // Cursor pagination: `before` is the id of the last entry already seen. Anything else is ignored.
+  const requested = firstParam((await searchParams).before);
+  const before = UuidSchema.safeParse(requested).success ? requested : undefined;
+  const logs = await read(api.GET('/api/v1/audit-logs', { params: { query: { pageSize: 50, before } } }));
 
   return (
     <>
@@ -73,14 +77,26 @@ export default async function ActivityPage({ searchParams }: PageProps<'/activit
             </tbody>
           </Table>
         )}
-        <Pagination
-          page={logs.page}
-          totalPages={logs.totalPages}
-          totalItems={logs.totalItems}
-          pageSize={logs.pageSize}
-          noun="events"
-          hrefFor={(target) => withQuery('/activity', { page: target === 1 ? undefined : target })}
-        />
+        {(before || logs.nextCursor) && (
+          <nav aria-label="Pagination" className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
+            {before ? (
+              <Link href="/activity" className={buttonClass('secondary', 'sm')}>
+                ← Newest
+              </Link>
+            ) : (
+              <span />
+            )}
+            {logs.nextCursor && (
+              <Link
+                href={withQuery('/activity', { before: logs.nextCursor })}
+                className={buttonClass('secondary', 'sm')}
+                rel="next"
+              >
+                Older →
+              </Link>
+            )}
+          </nav>
+        )}
       </Card>
     </>
   );

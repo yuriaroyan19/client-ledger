@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { isPublicPath, SESSION_COOKIE_NAMES } from '@/lib/auth/constants';
+import { isPublicPath, isWellFormedSessionToken, SESSION_COOKIE_NAMES } from '@/lib/auth/constants';
 
 /**
  * Runs before every page request:
@@ -27,12 +27,16 @@ function buildCsp(nonce: string, isHttps: boolean): string {
 
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
-  const hasSession = request.cookies.has(SESSION_COOKIE_NAMES.secure) || request.cookies.has(SESSION_COOKIE_NAMES.insecure);
+  const cookieNames = [SESSION_COOKIE_NAMES.secure, SESSION_COOKIE_NAMES.insecure];
+  const hasSession = cookieNames.some((name) => isWellFormedSessionToken(request.cookies.get(name)?.value));
 
   if (!hasSession && !isPublicPath(pathname)) {
     const loginUrl = new URL('/login', request.url);
     if (pathname !== '/') loginUrl.searchParams.set('next', `${pathname}${search}`);
-    return NextResponse.redirect(loginUrl);
+    const redirect = NextResponse.redirect(loginUrl);
+    // A present-but-malformed cookie is garbage (tampered or stale format): drop it.
+    for (const name of cookieNames) if (request.cookies.has(name)) redirect.cookies.delete(name);
+    return redirect;
   }
 
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64');

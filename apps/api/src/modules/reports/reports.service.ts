@@ -8,6 +8,18 @@ import { clientsService } from '../clients/clients.service.js';
 import { activeMovementsWhere, net, totalsFor, ZERO_TOTALS, type Totals } from '../movements/ledger.js';
 import type { OverviewQuery, OverviewRowView, ReportQuery, ReportTotalsView } from './reports.schemas.js';
 
+/**
+ * Exports read everything inside ONE repeatable-read snapshot, so a CSV always matches the ledger
+ * at a single instant even if someone edits movements while it downloads.
+ */
+export const EXPORT_TRANSACTION = {
+  isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+  maxWait: 10_000,
+  timeout: 10 * 60_000,
+} as const;
+
+const EXPORT_BATCH_SIZE = 500;
+
 function rangeView(range: DateRange) {
   return { from: range.from ? formatDateOnly(range.from) : null, to: range.to ? formatDateOnly(range.to) : null };
 }
@@ -47,16 +59,36 @@ const OVERVIEW_ORDER: Record<OverviewQuery['sort'], Prisma.Sql> = {
   balance_asc: Prisma.sql`"closingBalanceNum" ASC, c.name ASC, c.id ASC`,
 };
 
-async function overviewRows(range: DateRange, query: Pick<OverviewQuery, 'search' | 'sort'> & PaginationQuery) {
+type OverviewFilter = Pick<OverviewQuery, 'search' | 'sort'>;
+
+/** Name/email search over `clients c` (wildcards escaped; served by the trigram indexes). */
+function clientSearch(search: string | undefined): Prisma.Sql {
+  if (!search) return Prisma.empty;
+  const pattern = `%${escapeLike(search)}%`;
+  return Prisma.sql`WHERE c.name ILIKE ${pattern} OR c.email ILIKE ${pattern}`;
+}
+
+/**
+ * Builds the per-client overview query. `c` = clients, `m` = their non-deleted movements up to the
+ * range end; period columns only count movements inside the range.
+ *
+ *  - Sorted by name with a page: pick the page of clients FIRST (index on clients.name), then total
+ *    only those clients' movements — cost grows with the page size, not with the ledger.
+ *  - Sorted by balance (or no page, for the export): every client's balance is needed to order the
+ *    rows, so movements are aggregated in a single pass.
+ */
+function overviewQuery(range: DateRange, filter: OverviewFilter, page?: { take: number; skip: number }): Prisma.Sql {
   // Dates are passed as 'YYYY-MM-DD' strings cast to DATE to avoid any session time zone conversion.
   const inRange = range.from ? Prisma.sql`m.occurred_on >= ${formatDateOnly(range.from)}::date` : Prisma.sql`TRUE`;
   const upToEnd = range.to ? Prisma.sql`AND m.occurred_on <= ${formatDateOnly(range.to)}::date` : Prisma.empty;
-  const search = query.search
-    ? Prisma.sql`WHERE c.name ILIKE ${`%${escapeLike(query.search)}%`} OR c.email ILIKE ${`%${escapeLike(query.search)}%`}`
-    : Prisma.empty;
-  const { skip, take } = toSkipTake(query);
+  const search = clientSearch(filter.search);
+  const limit = page ? Prisma.sql`LIMIT ${page.take} OFFSET ${page.skip}` : Prisma.empty;
+  const pageFirst = page && filter.sort === 'name';
+  const clients = pageFirst
+    ? Prisma.sql`(SELECT c.id, c.name, c.archived_at FROM clients c ${search} ORDER BY c.name ASC, c.id ASC ${limit}) c`
+    : Prisma.sql`clients c`;
 
-  const rows = await prisma.$queryRaw<OverviewRowRaw[]>`
+  return Prisma.sql`
     SELECT
       c.id AS "clientId",
       c.name,
@@ -66,31 +98,36 @@ async function overviewRows(range: DateRange, query: Pick<OverviewQuery, 'search
       COUNT(m.id) FILTER (WHERE ${inRange})::int AS "movementCount",
       COALESCE(SUM(CASE WHEN m.type = 'EARNING' THEN m.amount ELSE -m.amount END), 0)::text AS "closingBalance",
       COALESCE(SUM(CASE WHEN m.type = 'EARNING' THEN m.amount ELSE -m.amount END), 0) AS "closingBalanceNum"
-    FROM clients c
+    FROM ${clients}
     LEFT JOIN movements m ON m.client_id = c.id AND m.deleted_at IS NULL ${upToEnd}
-    ${search}
-    GROUP BY c.id
-    ORDER BY ${OVERVIEW_ORDER[query.sort]}
-    LIMIT ${take} OFFSET ${skip}`;
+    ${pageFirst ? Prisma.empty : search}
+    GROUP BY c.id, c.name, c.archived_at
+    ORDER BY ${OVERVIEW_ORDER[filter.sort]}
+    ${pageFirst ? Prisma.empty : limit}`;
+}
 
-  // An aggregate without GROUP BY always returns exactly one row.
-  const [{ count }] = await prisma.$queryRaw<[{ count: number }]>`SELECT COUNT(*)::int AS count FROM clients c ${search}`;
+function toRowView(row: OverviewRowRaw): OverviewRowView {
+  const earnings = new Decimal(row.totalEarnings);
+  const expenses = new Decimal(row.totalExpenses);
+  return {
+    clientId: row.clientId,
+    name: row.name,
+    archivedAt: row.archivedAt?.toISOString() ?? null,
+    totalEarnings: formatMoney(earnings),
+    totalExpenses: formatMoney(expenses),
+    net: formatMoney(earnings.minus(expenses)),
+    closingBalance: formatMoney(row.closingBalance),
+    movementCount: row.movementCount,
+  };
+}
 
-  const items: OverviewRowView[] = rows.map((row) => {
-    const earnings = new Decimal(row.totalEarnings);
-    const expenses = new Decimal(row.totalExpenses);
-    return {
-      clientId: row.clientId,
-      name: row.name,
-      archivedAt: row.archivedAt?.toISOString() ?? null,
-      totalEarnings: formatMoney(earnings),
-      totalExpenses: formatMoney(expenses),
-      net: formatMoney(earnings.minus(expenses)),
-      closingBalance: formatMoney(row.closingBalance),
-      movementCount: row.movementCount,
-    };
-  });
-  return { items, total: count };
+async function overviewPage(range: DateRange, query: OverviewFilter & PaginationQuery) {
+  const [rows, [{ count }]] = await Promise.all([
+    prisma.$queryRaw<OverviewRowRaw[]>(overviewQuery(range, query, toSkipTake(query))),
+    // An aggregate without GROUP BY always returns exactly one row.
+    prisma.$queryRaw<[{ count: number }]>`SELECT COUNT(*)::int AS count FROM clients c ${clientSearch(query.search)}`,
+  ]);
+  return { items: rows.map(toRowView), total: count };
 }
 
 export const reportsService = {
@@ -109,7 +146,7 @@ export const reportsService = {
     const [totals, clientCount, rows] = await Promise.all([
       computeTotals(range),
       prisma.client.count(),
-      overviewRows(range, query),
+      overviewPage(range, query),
     ]);
     return {
       range: rangeView(range),
@@ -118,14 +155,25 @@ export const reportsService = {
     };
   },
 
-  /** Iterates all overview rows in pages, for CSV export without loading everything in memory. */
-  async *overviewRowsBatched(query: Omit<OverviewQuery, 'page' | 'pageSize'>, batchSize = 500) {
+  /**
+   * Streams every overview row for the CSV export: ONE aggregation, read through a server-side
+   * cursor in batches inside a single snapshot. `onBatch` returns false to stop early (client gone).
+   */
+  async streamOverview(
+    query: OverviewFilter & ReportQuery,
+    onBatch: (rows: OverviewRowView[]) => boolean,
+    batchSize = EXPORT_BATCH_SIZE,
+  ): Promise<void> {
     const range = toDateRange(query);
-    for (let page = 1; ; page += 1) {
-      const { items } = await overviewRows(range, { ...query, page, pageSize: batchSize });
-      if (items.length > 0) yield items;
-      if (items.length < batchSize) return;
-    }
+    // FETCH takes no bind parameters; batchSize is an internal integer, never user input.
+    const fetch = Prisma.sql([`FETCH FORWARD ${String(Math.trunc(batchSize))} FROM overview_export`]);
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`DECLARE overview_export NO SCROLL CURSOR FOR ${overviewQuery(range, query)}`;
+      for (;;) {
+        const rows = await tx.$queryRaw<OverviewRowRaw[]>(fetch);
+        if (rows.length === 0 || !onBatch(rows.map(toRowView)) || rows.length < batchSize) return;
+      }
+    }, EXPORT_TRANSACTION);
   },
 
   computeTotals,

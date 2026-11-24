@@ -2,7 +2,16 @@
 import { NextRequest } from 'next/server';
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import { apiRequests, cookieJar, json, NotFoundSignal, onApi, RedirectSignal, requestHeaders } from '../../test/next-fakes';
+import {
+  apiRequests,
+  cookieJar,
+  json,
+  NotFoundSignal,
+  onApi,
+  RedirectSignal,
+  requestHeaders,
+  VALID_TOKEN,
+} from '../../test/next-fakes';
 import { api, mutate, read } from './api/client';
 import { dateParam, proxyDownload } from './api/download';
 import { forwardedHeaders } from './api/forwarded';
@@ -13,7 +22,7 @@ import { serverEnv } from './env';
 import { formatDateTime, toneOf } from './format';
 import { apiFailed, formValues, initialFormState, validationFailed } from './forms';
 
-const TOKEN = 'cls_test-token';
+const TOKEN = VALID_TOKEN;
 const signIn = () => cookieJar.set(SESSION_COOKIE, { value: TOKEN });
 
 describe('server environment', () => {
@@ -52,6 +61,14 @@ describe('BFF API client', () => {
     expect(sent?.headers.get('cookie')).toBeNull();
     // Directly exposed (0 trusted hops): a client-supplied X-Forwarded-For is not passed on.
     expect(sent?.headers.get('x-forwarded-for')).toBeNull();
+  });
+
+  it('never forwards a malformed cookie value to the API', async () => {
+    cookieJar.set(SESSION_COOKIE, { value: 'not-a-session-token' });
+    expect(await getSessionToken()).toBeUndefined();
+    onApi('GET', '/api/v1/auth/me', { status: 401 }, 401);
+    await expect(read(api.GET('/api/v1/auth/me'))).rejects.toThrow(RedirectSignal);
+    expect(apiRequests[0]?.headers.get('authorization')).toBeNull();
   });
 
   it('sends no Authorization header without a session', async () => {

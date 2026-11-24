@@ -40,6 +40,9 @@ describe('logging helpers', () => {
       body: { password: 'p' },
     };
     expect(httpSerializers.req(req)).toEqual({ id: 'r', method: 'POST', url: '/api/v1/auth/login', remoteAddress: '::1' });
+    // Query strings carry search terms (client names, emails): never logged.
+    const search = { ...req, url: '/api/v1/clients?search=jane%40acme.test&page=2' };
+    expect(httpSerializers.req(search).url).toBe('/api/v1/clients');
     expect(httpSerializers.res({ statusCode: 201, headers: { 'set-cookie': 'x' } } as { statusCode: number })).toEqual({
       statusCode: 201,
     });

@@ -5,7 +5,7 @@ import swaggerUi from 'swagger-ui-express';
 import { env } from './config/env.js';
 import { generateOpenApiDocument } from './docs/openapi.js';
 import { errorHandler, notFoundHandler } from './middleware/error-handler.js';
-import { globalRateLimit } from './middleware/rate-limit.js';
+import { anonymousRateLimit } from './middleware/rate-limit.js';
 import { requestLogger } from './middleware/request-logger.js';
 import { API_PREFIX, buildRouters } from './routes.js';
 
@@ -37,7 +37,7 @@ export function createApp(): Express {
       maxAge: 600,
     }),
   );
-  app.use(globalRateLimit);
+  app.use(anonymousRateLimit);
   app.use(express.json({ limit: '16kb', strict: true }));
 
   // Authenticated responses are personal and financial: never cache them.

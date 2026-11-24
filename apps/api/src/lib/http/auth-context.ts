@@ -23,6 +23,13 @@ const AUTH_KEY = Symbol('auth');
 
 type RequestWithAuth = Request & { [AUTH_KEY]?: AuthContext };
 
+const BEARER = /^Bearer\s+(\S+)$/i;
+
+/** The raw token from `Authorization: Bearer <token>`, if present. */
+export function bearerTokenOf(req: Request): string | undefined {
+  return BEARER.exec(req.get('authorization') ?? '')?.[1];
+}
+
 export function setAuth(req: Request, auth: AuthContext): void {
   (req as RequestWithAuth)[AUTH_KEY] = auth;
 }

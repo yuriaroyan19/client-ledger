@@ -106,15 +106,34 @@ describe('overview report', () => {
     expect(page2.body.clients.items.map((row: { name: string }) => row.name)).toEqual(['Gamma', 'Under_score']);
   });
 
-  it('iterates every row in batches for export', async () => {
+  it('streams every row from one cursor in batches, in the requested order', async () => {
     await seedOverview();
-    const batches: string[][] = [];
-    for await (const rows of reportsService.overviewRowsBatched({ sort: 'name' }, 2)) batches.push(rows.map((row) => row.name));
-    expect(batches).toEqual([['Alpha', 'Beta'], ['Gamma']]);
+    const collect = async (query: Parameters<typeof reportsService.streamOverview>[0], batchSize: number) => {
+      const batches: string[][] = [];
+      await reportsService.streamOverview(query, (rows) => batches.push(rows.map((row) => row.name)) > 0, batchSize);
+      return batches;
+    };
+    expect(await collect({ sort: 'name' }, 2)).toEqual([['Alpha', 'Beta'], ['Gamma']]);
+    // An exact multiple of the batch size ends on an empty fetch.
+    expect(await collect({ sort: 'balance_asc' }, 3)).toEqual([['Beta', 'Gamma', 'Alpha']]);
+    expect(await collect({ sort: 'balance_desc', search: 'a' }, 1)).toEqual([['Alpha'], ['Gamma'], ['Beta']]);
+    expect(await collect({ sort: 'name', search: 'nobody' }, 2)).toEqual([]);
+  });
 
-    const none: unknown[] = [];
-    for await (const rows of reportsService.overviewRowsBatched({ sort: 'name', search: 'nobody' }, 2)) none.push(rows);
-    expect(none).toEqual([]);
+  it('stops streaming when the consumer goes away', async () => {
+    await seedOverview();
+    let calls = 0;
+    await reportsService.streamOverview({ sort: 'name' }, () => (calls += 1) < 0, 1);
+    expect(calls).toBe(1);
+  });
+
+  it('sorts by name with only the page of clients aggregated, matching the full aggregation', async () => {
+    await seedOverview();
+    const paged = await api().get('/api/v1/reports/overview?sort=name&pageSize=1&page=2&to=2026-02-28').set(auth).expect(200);
+    const full = await api().get('/api/v1/reports/overview?sort=balance_asc&to=2026-02-28').set(auth).expect(200);
+    const beta = full.body.clients.items.find((row: { name: string }) => row.name === 'Beta');
+    expect(paged.body.clients.items).toEqual([beta]);
+    expect(paged.body.clients).toMatchObject({ page: 2, totalItems: 3, totalPages: 3 });
   });
 
   it('exports the overview as CSV', async () => {
@@ -170,6 +189,30 @@ describe('client statement export', () => {
     expect(lines[1]).toBe('2026-01-01,OPENING BALANCE,,,,10.00');
     expect(lines.slice(2, 7).map((line) => line.split(',').at(-1))).toEqual(['11.25', '10.00', '11.25', '12.50', '11.25']);
     expect(lines[7]).toBe('2026-01-31,CLOSING BALANCE,,,,11.25');
+  });
+
+  it('stops reading batches once the client disconnects', async () => {
+    const client = await createClient(auth, { name: 'Gone' });
+    for (const day of ['01', '02', '03']) {
+      await addMovement(auth, client.id, { type: 'EARNING', amount: '1.00', occurredOn: `2026-01-${day}` });
+    }
+    const chunks: string[] = [];
+    const res = {
+      destroyed: false,
+      status: () => res,
+      setHeader: () => res,
+      write: (chunk: string) => {
+        chunks.push(chunk);
+        // The browser goes away after the first movement row.
+        if (chunk.startsWith('2026-01-01')) res.destroyed = true;
+        return true;
+      },
+      end: () => undefined,
+    };
+    await exportClientStatement(client.id, {}, res as unknown as Response, 1);
+    expect(csvLines(chunks.join('')).filter((line) => line.startsWith('2026-'))).toEqual([
+      '2026-01-01,EARNING,test movement,1.00,1.00,1.00',
+    ]);
   });
 
   it('returns 404 for unknown clients before writing anything', async () => {
@@ -249,10 +292,41 @@ describe('audit log', () => {
     const admins = await api().get('/api/v1/audit-logs?entityType=admin').set(auth).expect(200);
     expect(admins.body.items.every((item: { entityType: string }) => item.entityType === 'admin')).toBe(true);
 
-    const paged = await api().get('/api/v1/audit-logs?pageSize=1&page=2').set(auth).expect(200);
-    expect(paged.body).toMatchObject({ page: 2, pageSize: 1, totalItems: all.body.totalItems });
+    expect(all.body.nextCursor).toBeNull();
     await api().get('/api/v1/audit-logs?entityType=session').set(auth).expect(422);
     await api().get('/api/v1/audit-logs?entityId=not-a-uuid').set(auth).expect(422);
+    await api().get('/api/v1/audit-logs?before=not-a-uuid').set(auth).expect(422);
+  });
+
+  it('walks every entry exactly once with the cursor, newest first, even with identical timestamps', async () => {
+    const admin = await prisma.admin.findFirstOrThrow();
+    const sameInstant = new Date('2026-01-01T00:00:00.000Z');
+    // 5 entries share one timestamp: ordering must fall back to id so no page repeats or skips one.
+    await prisma.auditLog.createMany({
+      data: Array.from({ length: 5 }, () => ({
+        action: 'client.updated',
+        entityType: 'client',
+        adminId: admin.id,
+        createdAt: sameInstant,
+      })),
+    });
+    const expected = (await prisma.auditLog.findMany({ orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] })).map((row) => row.id);
+
+    const seen: string[] = [];
+    let before: string | null = null;
+    for (let guard = 0; guard < 10; guard += 1) {
+      const query: string = before ? `?pageSize=2&before=${before}` : '?pageSize=2';
+      const res = await api().get(`/api/v1/audit-logs${query}`).set(auth).expect(200);
+      seen.push(...(res.body.items as Array<{ id: string }>).map((item) => item.id));
+      before = res.body.nextCursor as string | null;
+      if (!before) break;
+    }
+    expect(seen).toEqual(expected);
+    expect(expected).toHaveLength(6); // login + 5 inserted
+
+    // A cursor that matches nothing returns an empty last page rather than an error.
+    const unknown = await api().get('/api/v1/audit-logs?before=0195f7c2-0000-7000-8000-000000000000').set(auth).expect(200);
+    expect(unknown.body).toEqual({ items: [], nextCursor: null });
   });
 
   it('never stores passwords in failed-login metadata', async () => {

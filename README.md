@@ -111,7 +111,9 @@ All variables live in `.env` (see `.env.example`). Highlights:
 | `RATE_LIMIT_WINDOW_MINUTES`                     | `15`                                         | Window for the login limits                                         |
 | `RATE_LIMIT_LOGIN_MAX_PER_IP`                   | `20`                                         | Login attempts per IP per window                                    |
 | `RATE_LIMIT_LOGIN_MAX_FAILURES_PER_EMAIL`       | `5`                                          | Failed logins per account per window                                |
-| `RATE_LIMIT_GLOBAL_MAX_PER_MINUTE`              | `600`                                        | All API requests per IP per minute                                  |
+| `RATE_LIMIT_ANONYMOUS_MAX_PER_MINUTE`           | `600`                                        | Requests per IP per minute **without** a session                    |
+| `RATE_LIMIT_SESSION_MAX_PER_MINUTE`             | `300`                                        | Requests per minute per signed-in session                           |
+| `RATE_LIMIT_AUTH_FAILURES_PER_MINUTE`           | `30`                                         | Failed session checks per IP per minute (then unknown tokens: 429)  |
 | `TRUSTED_PROXY_HOPS`                            | `0`                                          | Web: proxies in front that append to `X-Forwarded-For` (rule 6)     |
 | `TRUST_PROXY`                                   | `loopback, linklocal, uniquelocal`           | API: Express `trust proxy` (the web container)                      |
 | `CORS_ORIGINS`                                  | empty                                        | API: browser origins allowed to call it directly (keep empty)       |

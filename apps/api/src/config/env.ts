@@ -47,7 +47,12 @@ const EnvSchema = z.object({
   RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().min(1).default(15),
   RATE_LIMIT_LOGIN_MAX_PER_IP: z.coerce.number().int().min(1).default(20),
   RATE_LIMIT_LOGIN_MAX_FAILURES_PER_EMAIL: z.coerce.number().int().min(1).default(5),
-  RATE_LIMIT_GLOBAL_MAX_PER_MINUTE: z.coerce.number().int().min(1).default(600),
+  /** Requests per minute per IP WITHOUT a session token (login, health, unknown routes). */
+  RATE_LIMIT_ANONYMOUS_MAX_PER_MINUTE: z.coerce.number().int().min(1).default(600),
+  /** Requests per minute per signed-in session. Keyed by session, so one user can't exhaust another's budget. */
+  RATE_LIMIT_SESSION_MAX_PER_MINUTE: z.coerce.number().int().min(1).default(300),
+  /** Failed session-token checks per minute per IP before unknown tokens are refused without a database lookup. */
+  RATE_LIMIT_AUTH_FAILURES_PER_MINUTE: z.coerce.number().int().min(1).default(30),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

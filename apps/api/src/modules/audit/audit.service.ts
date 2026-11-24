@@ -1,7 +1,7 @@
 import type { Prisma } from '../../generated/prisma/client.js';
 import type { Actor } from '../../lib/http/auth-context.js';
 import { prisma, type DbClient } from '../../lib/prisma.js';
-import { toPage, toSkipTake, type Page, type PaginationQuery } from '../../lib/pagination.js';
+import type { AuditLogView, ListAuditLogsQuery } from './audit.schemas.js';
 
 /** Closed list of auditable actions — add new ones here so they stay greppable and documented. */
 export const AUDIT_ACTIONS = [
@@ -28,18 +28,6 @@ export interface AuditEntry {
   metadata?: Prisma.InputJsonValue;
 }
 
-export interface AuditLogView {
-  id: string;
-  action: string;
-  entityType: string | null;
-  entityId: string | null;
-  metadata: unknown;
-  ipAddress: string | null;
-  requestId: string | null;
-  createdAt: string;
-  admin: { id: string; name: string } | null;
-}
-
 export const auditService = {
   /** Pass the transaction client so the audit row commits/rolls back with the change it describes. */
   async record(entry: AuditEntry, actor: Actor, db: DbClient = prisma): Promise<void> {
@@ -56,34 +44,34 @@ export const auditService = {
     });
   },
 
-  async list(query: PaginationQuery & { entityType?: string; entityId?: string }): Promise<Page<AuditLogView>> {
-    const where: Prisma.AuditLogWhereInput = {
-      ...(query.entityType && { entityType: query.entityType }),
-      ...(query.entityId && { entityId: query.entityId }),
-    };
-    const [rows, total] = await prisma.$transaction([
-      prisma.auditLog.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        include: { admin: { select: { id: true, name: true } } },
-        ...toSkipTake(query),
-      }),
-      prisma.auditLog.count({ where }),
-    ]);
-    return toPage(
-      rows.map((row) => ({
-        id: row.id,
-        action: row.action,
-        entityType: row.entityType,
-        entityId: row.entityId,
-        metadata: row.metadata,
-        ipAddress: row.ipAddress,
-        requestId: row.requestId,
-        createdAt: row.createdAt.toISOString(),
-        admin: row.admin,
-      })),
-      total,
-      query,
-    );
+  /**
+   * Newest first, keyset-paginated on (createdAt, id): no COUNT over the whole table, and stable
+   * pages even when entries share a timestamp. Reads one extra row to know whether more exist.
+   */
+  async list(query: ListAuditLogsQuery): Promise<{ items: AuditLogView[]; nextCursor: string | null }> {
+    const rows = await prisma.auditLog.findMany({
+      where: {
+        ...(query.entityType && { entityType: query.entityType }),
+        ...(query.entityId && { entityId: query.entityId }),
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      include: { admin: { select: { id: true, name: true } } },
+      take: query.pageSize + 1,
+      ...(query.before && { cursor: { id: query.before }, skip: 1 }),
+    });
+    const hasMore = rows.length > query.pageSize;
+    const items = rows.slice(0, query.pageSize).map((row) => ({
+      id: row.id,
+      action: row.action,
+      entityType: row.entityType,
+      entityId: row.entityId,
+      metadata: row.metadata,
+      ipAddress: row.ipAddress,
+      requestId: row.requestId,
+      createdAt: row.createdAt.toISOString(),
+      admin: row.admin,
+    }));
+    const last = items.at(-1);
+    return { items, nextCursor: hasMore && last ? last.id : null };
   },
 };

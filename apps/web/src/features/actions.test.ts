@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { apiRequests, cookieJar, json, nextCache, onApi, RedirectSignal } from '../../test/next-fakes';
+import { apiRequests, cookieJar, json, nextCache, onApi, RedirectSignal, VALID_TOKEN } from '../../test/next-fakes';
 import { SESSION_COOKIE } from '@/lib/auth/session-cookie';
 import { loginAction, logoutAction, logoutEverywhereAction } from './auth/actions';
 import { getCurrentAdmin, hasValidSession } from './auth/session';
@@ -80,10 +80,10 @@ describe('logout actions', () => {
     [logoutAction, '/api/v1/auth/logout', '/login?reason=signed-out'],
     [logoutEverywhereAction, '/api/v1/auth/logout-all', '/login?reason=signed-out-everywhere'],
   ])('revokes server-side, clears the cookie and redirects', async (action, path, target) => {
-    cookieJar.set(SESSION_COOKIE, { value: 'cls_x' });
+    cookieJar.set(SESSION_COOKIE, { value: VALID_TOKEN });
     onApi('POST', path, {}, 204);
     expect(await redirectOf(action())).toBe(target);
-    expect(apiRequests[0]?.headers.get('authorization')).toBe('Bearer cls_x');
+    expect(apiRequests[0]?.headers.get('authorization')).toBe(`Bearer ${VALID_TOKEN}`);
     expect(cookieJar.size).toBe(0);
   });
 
@@ -91,7 +91,7 @@ describe('logout actions', () => {
     [logoutAction, '/api/v1/auth/logout', '/login?reason=signed-out'],
     [logoutEverywhereAction, '/api/v1/auth/logout-all', '/login?reason=signed-out-everywhere'],
   ])('still clears the cookie when the API is unreachable', async (action, path, target) => {
-    cookieJar.set(SESSION_COOKIE, { value: 'cls_x' });
+    cookieJar.set(SESSION_COOKIE, { value: VALID_TOKEN });
     onApi('POST', path, () => Promise.reject(new TypeError('fetch failed')));
     expect(await redirectOf(action())).toBe(target);
     expect(cookieJar.size).toBe(0);
@@ -102,7 +102,7 @@ describe('session helpers', () => {
   it('hasValidSession is false without a cookie (no API call) and mirrors the API otherwise', async () => {
     expect(await hasValidSession()).toBe(false);
     expect(apiRequests).toHaveLength(0);
-    cookieJar.set(SESSION_COOKIE, { value: 'cls_x' });
+    cookieJar.set(SESSION_COOKIE, { value: VALID_TOKEN });
     onApi('GET', '/api/v1/auth/me', { id: 'a', email: 'a@test.local', name: 'A' });
     expect(await hasValidSession()).toBe(true);
     onApi('GET', '/api/v1/auth/me', { status: 401 }, 401);

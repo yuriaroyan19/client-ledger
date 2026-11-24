@@ -309,7 +309,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List activity (newest first) */
+        /** List activity (newest first, cursor-paginated) */
         get: operations["listAuditLogs"];
         put?: never;
         post?: never;
@@ -589,12 +589,13 @@ export interface components {
             closingBalance: string;
             movementCount: number;
         };
-        AuditLogPage: {
+        AuditLogCursorPage: {
             items: components["schemas"]["AuditLog"][];
-            page: number;
-            pageSize: number;
-            totalItems: number;
-            totalPages: number;
+            /**
+             * Format: uuid
+             * @description Pass as `before` for the next (older) page; null on the last page.
+             */
+            nextCursor: string | null;
         };
         AuditLog: {
             /** Format: uuid */
@@ -1943,8 +1944,9 @@ export interface operations {
     listAuditLogs: {
         parameters: {
             query?: {
-                page?: number;
                 pageSize?: number;
+                /** @description Return entries older than this entry id (a previous `nextCursor`). */
+                before?: string;
                 entityType?: "admin" | "client" | "movement";
                 entityId?: string;
             };
@@ -1960,7 +1962,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AuditLogPage"];
+                    "application/json": components["schemas"]["AuditLogCursorPage"];
                 };
             };
             /** @description Missing, invalid or expired session */

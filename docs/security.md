@@ -57,7 +57,8 @@ Why sessions and not JWTs: [ADR 0002](decisions/0002-sessions-over-jwt.md).
 - Ledger changes lock the client row first, so a movement can never be added, edited or deleted after its client was
   archived, and concurrent deletes of one movement are audited once (`test/concurrency.int.test.ts`).
 - Logs are structured JSON with redaction of auth headers, cookies, passwords and tokens. Request and response bodies
-  are never logged.
+  are never logged, and neither are query strings (they carry search terms such as client names and emails).
+- Exports read from one `REPEATABLE READ` snapshot, so a CSV always matches the ledger at a single instant.
 
 ## Infrastructure
 
@@ -75,6 +76,12 @@ Why sessions and not JWTs: [ADR 0002](decisions/0002-sessions-over-jwt.md).
 
 ## Known limitations / next steps
 
+- Rate limiting is keyed so that one client can't lock out others ([ADR 0005](decisions/0005-rate-limit-keys.md)):
+  signed-in requests are limited **per session** (after the API validated it), and the per-IP limit only counts
+  requests **without** a well-formed session token. Failed token checks are counted per IP inside `authenticate`;
+  over budget, unknown tokens are refused before the database lookup, while recently valid sessions keep working.
+  The web app treats a malformed session cookie as no session at all (redirect to login, no API call). Raw request
+  floods belong to a reverse proxy or WAF in front of the app.
 - Rate-limit counters are in memory. For several API replicas, use a shared store (e.g. `rate-limit-redis`).
 - Client IPs: the BFF forwards an end-user IP to the API only from proxies it trusts (`TRUSTED_PROXY_HOPS`, default
   `0`). A client-sent `X-Forwarded-For` is ignored, because Next.js keeps it rather than overwriting it, so it can't be

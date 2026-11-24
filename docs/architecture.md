@@ -75,6 +75,21 @@ closing = opening + net
 Integration tests check that report totals equal the sum of the listed movements, and that overview totals equal the
 sum of the per-client rows.
 
+### Scaling the reports
+
+- **Overview sorted by name:** the page of clients is selected first (index `clients(name, id)`) and only those
+  clients' movements are totalled, so cost follows the page size, not the size of the ledger.
+- **Overview sorted by balance:** ordering needs every client's balance, so movements are aggregated in one pass.
+  The header totals also scan the movements in range. If the ledger reaches tens of millions of rows, the next step is
+  a maintained per-client balance table.
+- **CSV exports:** one query, read through a server-side cursor (`DECLARE … CURSOR`, `FETCH` in batches) inside a
+  single `REPEATABLE READ` transaction. No re-aggregation per batch, memory stays flat, the file is consistent, and
+  reading stops when the browser disconnects.
+- **Client search:** `pg_trgm` GIN indexes on name, email and phone serve `ILIKE '%term%'` (measured: 0.7 ms
+  over 50k clients after VACUUM, versus a full scan). Very short terms (1–2 characters) can't use trigrams.
+- **Activity log:** cursor (keyset) pagination on `(created_at, id)`. No `COUNT(*)` over a table that only grows,
+  and pages stay stable when entries share a timestamp.
+
 ## Web rendering & performance
 
 - Server Components by default; client components are leaf-level (`'use client'` in forms/buttons only).

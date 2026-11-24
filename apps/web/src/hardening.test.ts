@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MovementFormSchema } from '@/features/movements/schemas';
 import { isPublicPath, safeNextPath } from '@/lib/auth/constants';
 import { isValidDateOnly, presetRange, rangeFromSearchParams } from '@/lib/date-range';
+import { VALID_TOKEN } from '../test/next-fakes';
 import { config, proxy } from './proxy';
 
 const request = (path: string, init: { cookie?: string; headers?: Record<string, string> } = {}) =>
@@ -28,10 +29,24 @@ describe('proxy: auth gate', () => {
     expect(proxy(request(path)).headers.get('location')).toBeNull();
   });
 
-  it.each(['__Host-cl_session=x', 'cl_session=x'])('lets requests with a session cookie through (%s)', (cookie) => {
-    const res = proxy(request('/clients', { cookie }));
+  it.each(['__Host-cl_session', 'cl_session'])('lets requests with a well-formed session cookie through (%s)', (name) => {
+    const res = proxy(request('/clients', { cookie: `${name}=${VALID_TOKEN}` }));
     expect(res.headers.get('location')).toBeNull();
     expect(res.headers.get('x-middleware-next')).toBe('1');
+  });
+
+  it.each(['x', 'cls_short', `cls_${'A'.repeat(42)}!`, `${VALID_TOKEN}x`])(
+    'treats a malformed cookie (%s) as no session: redirect to login and delete it, without calling the API',
+    (value) => {
+      const res = proxy(request('/clients', { cookie: `__Host-cl_session=${value}` }));
+      expect(new URL(res.headers.get('location') ?? '').pathname).toBe('/login');
+      expect(res.headers.get('set-cookie')).toMatch(/__Host-cl_session=;.*Expires=Thu, 01 Jan 1970/i);
+    },
+  );
+
+  it('keeps a valid cookie when the other cookie name holds garbage', () => {
+    const res = proxy(request('/clients', { cookie: `cl_session=garbage; __Host-cl_session=${VALID_TOKEN}` }));
+    expect(res.headers.get('location')).toBeNull();
   });
 
   it('skips static assets and prefetches', () => {

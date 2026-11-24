@@ -2,6 +2,7 @@ import type { RouteConfig } from '@asteasolutions/zod-to-openapi';
 import { Router, type Request, type RequestHandler, type Response } from 'express';
 import { ProblemSchema, registry } from '../../docs/openapi.js';
 import { authenticate } from '../../middleware/authenticate.js';
+import { sessionRateLimit } from '../../middleware/rate-limit.js';
 import { ValidationError, type FieldIssue } from '../errors.js';
 import type { z, ZodType } from '../zod.js';
 import { actorFrom, getAuth, type Actor, type AuthContext } from './auth-context.js';
@@ -120,7 +121,12 @@ export class ApiRouter {
       });
     };
 
-    const chain: RequestHandler[] = [...(requiresAuth ? [authenticate] : []), ...(spec.middleware ?? []), validate, handle];
+    const chain: RequestHandler[] = [
+      ...(requiresAuth ? [authenticate, sessionRateLimit] : []),
+      ...(spec.middleware ?? []),
+      validate,
+      handle,
+    ];
     this.router[spec.method](spec.path, ...chain);
   }
 

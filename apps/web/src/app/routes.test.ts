@@ -2,7 +2,7 @@
 import { NextRequest } from 'next/server';
 import { describe, expect, it } from 'vitest';
 import { admin, CLIENT_ID } from '../../test/fixtures';
-import { apiRequests, cookieJar, onApi, RedirectSignal } from '../../test/next-fakes';
+import { apiRequests, cookieJar, onApi, RedirectSignal, VALID_TOKEN } from '../../test/next-fakes';
 import { SESSION_COOKIE } from '@/lib/auth/session-cookie';
 import { GET as health } from './api/health/route';
 import { GET as exportClient } from './exports/clients/[clientId]/route';
@@ -13,7 +13,7 @@ import Home from './page';
 import robots from './robots';
 
 const url = (path: string) => new NextRequest(`http://localhost:3000${path}`);
-const signIn = () => cookieJar.set(SESSION_COOKIE, { value: 'cls_x' });
+const signIn = () => cookieJar.set(SESSION_COOKIE, { value: VALID_TOKEN });
 const csv = () => new Response('Client\r\n', { headers: { 'Content-Type': 'text/csv; charset=utf-8' } });
 
 describe('GET /logout (expired-session landing)', () => {

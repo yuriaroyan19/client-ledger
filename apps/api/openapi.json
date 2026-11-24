@@ -747,7 +747,7 @@
           "movementCount"
         ]
       },
-      "AuditLogPage": {
+      "AuditLogCursorPage": {
         "type": "object",
         "properties": {
           "items": {
@@ -756,25 +756,18 @@
               "$ref": "#/components/schemas/AuditLog"
             }
           },
-          "page": {
-            "type": "integer"
-          },
-          "pageSize": {
-            "type": "integer"
-          },
-          "totalItems": {
-            "type": "integer"
-          },
-          "totalPages": {
-            "type": "integer"
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Pass as `before` for the next (older) page; null on the last page."
           }
         },
         "required": [
           "items",
-          "page",
-          "pageSize",
-          "totalItems",
-          "totalPages"
+          "nextCursor"
         ]
       },
       "AuditLog": {
@@ -2721,7 +2714,7 @@
     "/api/v1/audit-logs": {
       "get": {
         "operationId": "listAuditLogs",
-        "summary": "List activity (newest first)",
+        "summary": "List activity (newest first, cursor-paginated)",
         "tags": [
           "Audit"
         ],
@@ -2735,24 +2728,22 @@
             "schema": {
               "type": "integer",
               "minimum": 1,
-              "maximum": 100000,
-              "default": 1,
-              "example": 1
+              "maximum": 100,
+              "default": 50
             },
             "required": false,
-            "name": "page",
+            "name": "pageSize",
             "in": "query"
           },
           {
             "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100,
-              "default": 20,
-              "example": 20
+              "type": "string",
+              "format": "uuid",
+              "description": "Return entries older than this entry id (a previous `nextCursor`)."
             },
             "required": false,
-            "name": "pageSize",
+            "description": "Return entries older than this entry id (a previous `nextCursor`).",
+            "name": "before",
             "in": "query"
           },
           {
@@ -2784,7 +2775,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AuditLogPage"
+                  "$ref": "#/components/schemas/AuditLogCursorPage"
                 }
               }
             }

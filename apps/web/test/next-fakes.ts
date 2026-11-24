@@ -4,6 +4,9 @@
  */
 import { vi } from 'vitest';
 
+/** A token with the exact shape the API issues (`cls_` + 43 base64url chars). */
+export const VALID_TOKEN = `cls_${'A'.repeat(43)}`;
+
 export class RedirectSignal extends Error {
   constructor(readonly url: string) {
     super(`NEXT_REDIRECT ${url}`);

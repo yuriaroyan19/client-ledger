@@ -6,12 +6,15 @@ import { logger } from '../lib/logger.js';
 /** Accept a caller-provided correlation id only if it is short and harmless. */
 const SAFE_REQUEST_ID = /^[A-Za-z0-9_-]{8,64}$/;
 
-/** Log only what is useful; never bodies (they may hold passwords or financial data). */
+/**
+ * Log only what is useful. Never bodies (passwords, financial data) and never query strings:
+ * they carry search terms such as client names and emails.
+ */
 export const httpSerializers = {
   req: (req: { id: unknown; method: string; url: string; remoteAddress?: string }) => ({
     id: req.id,
     method: req.method,
-    url: req.url,
+    url: req.url.replace(/\?.*$/s, ''),
     remoteAddress: req.remoteAddress,
   }),
   res: (res: { statusCode: number }) => ({ statusCode: res.statusCode }),

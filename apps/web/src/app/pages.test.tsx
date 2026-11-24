@@ -14,7 +14,7 @@ import {
   page,
   totals,
 } from '../../test/fixtures';
-import { apiRequests, cookieJar, NotFoundSignal, onApi, RedirectSignal } from '../../test/next-fakes';
+import { apiRequests, cookieJar, NotFoundSignal, onApi, RedirectSignal, VALID_TOKEN } from '../../test/next-fakes';
 import { SESSION_COOKIE } from '@/lib/auth/session-cookie';
 import ActivityPage from './(app)/activity/page';
 import EditMovementPage from './(app)/clients/[clientId]/movements/[movementId]/edit/page';
@@ -35,6 +35,8 @@ vi.mock('next/server', async (importOriginal) => ({
 }));
 
 type Search = Record<string, string | string[]>;
+const OLDER_CURSOR = '0195f7c2-4444-7000-8000-000000000004';
+const cursorPage = <T,>(items: T[], nextCursor: string | null = null) => ({ items, nextCursor });
 const props = <P extends Record<string, string>>(params: P, searchParams: Search = {}) =>
   ({ params: Promise.resolve(params), searchParams: Promise.resolve(searchParams) }) as never;
 const searchProps = (searchParams: Search = {}) => ({ searchParams: Promise.resolve(searchParams) }) as never;
@@ -98,7 +100,7 @@ describe('login page', () => {
   });
 
   it('sends signed-in users on to their destination', async () => {
-    cookieJar.set(SESSION_COOKIE, { value: 'cls_x' });
+    cookieJar.set(SESSION_COOKIE, { value: VALID_TOKEN });
     onApi('GET', '/api/v1/auth/me', admin);
     await expect(LoginPage(searchProps({ next: '/activity' }))).rejects.toMatchObject({ url: '/activity' });
     await expect(LoginPage(searchProps())).rejects.toMatchObject({ url: '/clients' });
@@ -366,7 +368,7 @@ describe('activity page', () => {
     onApi(
       'GET',
       '/api/v1/audit-logs',
-      page([
+      cursorPage([
         auditLog(),
         auditLog({
           id: 'a2',
@@ -389,8 +391,9 @@ describe('activity page', () => {
         auditLog({ id: 'a6', action: 'auth.logout', entityType: 'admin', metadata: null }),
       ]),
     );
-    await show(ActivityPage(searchProps({ page: '1' })));
-    expect(queryOf()).toEqual({ page: '1', pageSize: '50' });
+    await show(ActivityPage(searchProps()));
+    expect(queryOf()).toEqual({ pageSize: '50' });
+    expect(screen.queryByRole('navigation', { name: 'Pagination' })).not.toBeInTheDocument();
     const rows = within(screen.getByRole('table', { name: 'Activity log' })).getAllByRole('row');
     expect(rows[1]).toHaveTextContent('Client createdView client');
     expect(within(rows[1] as HTMLElement).getByRole('link')).toHaveAttribute('href', `/clients/${CLIENT_ID}`);
@@ -401,15 +404,32 @@ describe('activity page', () => {
     expect(rows[6]).toHaveTextContent('Signed out');
   });
 
-  it('paginates', async () => {
-    onApi('GET', '/api/v1/audit-logs', page([auditLog()], { page: 2, pageSize: 50, totalItems: 150, totalPages: 3 }));
-    await show(ActivityPage(searchProps({ page: '2' })));
-    expect(screen.getByRole('link', { name: /Previous/ })).toHaveAttribute('href', '/activity');
-    expect(screen.getByRole('link', { name: /Next/ })).toHaveAttribute('href', '/activity?page=3');
+  it('pages with a cursor: Older loads entries before the last one shown, Newest goes back to the top', async () => {
+    onApi('GET', '/api/v1/audit-logs', cursorPage([auditLog()], OLDER_CURSOR));
+    await show(ActivityPage(searchProps()));
+    expect(screen.queryByRole('link', { name: /Newest/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Older/ })).toHaveAttribute('href', `/activity?before=${OLDER_CURSOR}`);
+
+    await show(ActivityPage(searchProps({ before: OLDER_CURSOR })));
+    expect(queryOf(1)).toEqual({ pageSize: '50', before: OLDER_CURSOR });
+    expect(screen.getAllByRole('link', { name: /Newest/ }).at(-1)).toHaveAttribute('href', '/activity');
+  });
+
+  it('shows Newest without Older on the last page', async () => {
+    onApi('GET', '/api/v1/audit-logs', cursorPage([auditLog()], null));
+    await show(ActivityPage(searchProps({ before: OLDER_CURSOR })));
+    expect(screen.getByRole('link', { name: /Newest/ })).toHaveAttribute('href', '/activity');
+    expect(screen.queryByRole('link', { name: /Older/ })).not.toBeInTheDocument();
+  });
+
+  it('ignores a malformed cursor instead of sending it to the API', async () => {
+    onApi('GET', '/api/v1/audit-logs', cursorPage([]));
+    await show(ActivityPage(searchProps({ before: "1' OR '1'='1" })));
+    expect(queryOf()).toEqual({ pageSize: '50' });
   });
 
   it('shows an empty state', async () => {
-    onApi('GET', '/api/v1/audit-logs', page([]));
+    onApi('GET', '/api/v1/audit-logs', cursorPage([]));
     await show(ActivityPage(searchProps()));
     expect(screen.getByText('No activity yet')).toBeInTheDocument();
   });
